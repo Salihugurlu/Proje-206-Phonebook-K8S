@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pb-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+
+
+--- 
+
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pb-pv-volume-claim
+spec:
+  selector:
+    matchLabels:
+      type: local
+  storageClassName: manual # Empty string must be explicitly set otherwise default StorageClass will be set
+  accessModes:
+    - ReadWriteOnce
+  resources: 
+    requests: 
+      storage: 1Gi
+  # volumeName: pb-pv-volume-claim
+
+---
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: db-mysql
+  template:
+    metadata:
+      labels:
+        name: db-mysql
+    spec:
+      containers:
+      - image: mysql:5.7
+        name: db-mysql
+        # env:
+        # - name: MYSQL_ROOT_PASSWORD
+        #   value: Aa123456
+        # - name: MYSQL_PASSWORD
+        #   value: admin123
+        # - name: MYSQL_DATABASE
+        #   value: phonebook
+        # - name: MYSQL_USER
+        #   value: clarus
+        ports:
+        - name: db-mysql
+          containerPort: 3306
+        volumeMounts:
+          - name: mysql-persistent-storage
+            mountPath: /var/lib/mysql
+        envFrom:
+          - secretRef:
+              name: mysql-secret
+          - configMapRef:
+              name: mysql-config            
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: pb-pv-volume-claim
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "100m"
+          limits:
+            memory: "750Mi"
+            cpu: "750m"
+        # env:
+        # - name: MYSQL_ROOT_PASSWORD
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: mysecret
+        #       key: myrootpassword
+        # #   value: R1234r
+        # - name: MYSQL_PASSWORD
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: mysecret
+        #       key: mypassword
+        # #   value: Clarusway_1
+        # - name: MYSQL_USER
+        #   value: clarus
+        # - name: MYSQL_DATABASE
+        #   value: phonebook
+
+
+
+--- 
+
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-mysql
+spec:
+  type: ClusterIP
+  selector:
+    name: db-mysql
+  ports:
+  - protocol: TCP
+    port: 3306
+    targetPort: 3306

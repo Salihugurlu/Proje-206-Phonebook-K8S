@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: webserver
+  template:
+    metadata:
+      labels:
+        name: webserver
+    spec:
+      containers:
+      - name: webserver
+        # env:
+        #   - name: MYSQL_DATABASE_HOST
+        #     value: db-mysql
+        #   - name: MYSQL_PASSWORD
+        #     value: admin123
+        #   - name: MYSQL_DATABASE
+        #     value: phonebook
+        #   - name: MYSQL_USER
+        #     value: admin
+        image: salihijk/resultserver
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        envFrom:
+          - configMapRef:
+              name: servers-config
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_PASSWORD
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "100m"
+          limits:
+            memory: "750Mi"
+            cpu: "750m"
+
+
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webserver-service
+spec:
+  type: NodePort
+  selector:
+    name: webserver
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30001
+
+
+
